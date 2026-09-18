@@ -17,7 +17,7 @@
     body {
       margin: 0;
       padding: 0;
-      background: #7CDA6B;
+      background: #C4F2BC;
       transition: background-color 0.5s ease;
       font-family: 'Nunito', 'Fredoka One', cursive, sans-serif;
       overflow: hidden;
@@ -60,12 +60,12 @@
     }
   </style>
 </head>
-<body class="relative flex flex-col justify-between items-center w-screen h-screen overflow-hidden select-none bg-[#7CDA6B] transition-colors duration-500">
+<body class="relative flex flex-col justify-between items-center w-screen h-screen overflow-hidden select-none bg-[#C4F2BC] transition-colors duration-500">
   <!-- Title Header: FOOTPRINTS (Duolingo Style Badge) -->
   <header class="w-full text-center pt-2 sm:pt-3 pb-1 z-10 shrink-0 flex items-center justify-center">
     <div class="inline-flex items-center gap-2 bg-white px-5 py-1.5 rounded-full border-2 border-white/80 shadow-[0_4px_0_rgba(0,0,0,0.15)]">
       <span class="text-xl sm:text-2xl animate-pulse">🐾</span>
-      <h1 id="header-title" class="text-xl sm:text-3xl font-black tracking-wide text-[#4EA826] drop-shadow-sm font-['Nunito'] transition-colors duration-300">
+      <h1 id="header-title" class="text-xl sm:text-3xl font-black tracking-wide text-[#3B8E1B] drop-shadow-sm font-['Nunito'] transition-colors duration-300">
         FOOTPRINTS
       </h1>
       <span class="text-xl sm:text-2xl animate-pulse">🐾</span>
@@ -327,16 +327,16 @@
       const body = document.body;
       const headerTitle = document.getElementById('header-title');
       if (currentMode === 'quiz') {
-        body.style.backgroundColor = '#FFB366'; // Soft Pastel Orange
-        if (headerTitle) headerTitle.style.color = '#E67A1D';
+        body.style.backgroundColor = '#FFD9B3'; // 50% Soft Pastel Orange
+        if (headerTitle) headerTitle.style.color = '#D4620A';
       } else if (currentMode === 'result') {
-        const bg = finalPercentage >= 80 ? '#7CDA6B' : '#FFB366';
-        const txt = finalPercentage >= 80 ? '#4EA826' : '#E67A1D';
+        const bg = finalPercentage >= 80 ? '#C4F2BC' : '#FFD9B3';
+        const txt = finalPercentage >= 80 ? '#3B8E1B' : '#D4620A';
         body.style.backgroundColor = bg;
         if (headerTitle) headerTitle.style.color = txt;
       } else {
-        body.style.backgroundColor = '#7CDA6B'; // Soft Pastel Green
-        if (headerTitle) headerTitle.style.color = '#4EA826';
+        body.style.backgroundColor = '#C4F2BC'; // 50% Soft Pastel Green
+        if (headerTitle) headerTitle.style.color = '#3B8E1B';
       }
     }
 
@@ -1310,8 +1310,8 @@
 
           draw3DBevelRect(btn.x, btn.y, btn.w, btn.h, 18, bg, shadow, (btn.active || needsAttn) ? 4 : 3, border, 2);
 
-          ctx.fillStyle = btn.active ? '#FFFFFF' : (needsAttn ? '#A05E03' : '#777777');
-          ctx.font = '900 17px "Nunito", "Fredoka One"';
+          ctx.fillStyle = btn.active ? '#FFFFFF' : (needsAttn ? '#A05E03' : '#4A5568');
+          ctx.font = '900 21px "Nunito", "Fredoka One"';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           const tabLabel = needsAttn ? `⚠️ ${btn.text}` : btn.text;
