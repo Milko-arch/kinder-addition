@@ -17,7 +17,7 @@
     body {
       margin: 0;
       padding: 0;
-      background: #58CC02;
+      background: #7CDA6B;
       transition: background-color 0.5s ease;
       font-family: 'Nunito', 'Fredoka One', cursive, sans-serif;
       overflow: hidden;
@@ -60,12 +60,12 @@
     }
   </style>
 </head>
-<body class="relative flex flex-col justify-between items-center w-screen h-screen overflow-hidden select-none bg-[#58CC02] transition-colors duration-500">
+<body class="relative flex flex-col justify-between items-center w-screen h-screen overflow-hidden select-none bg-[#7CDA6B] transition-colors duration-500">
   <!-- Title Header: FOOTPRINTS (Duolingo Style Badge) -->
   <header class="w-full text-center pt-2 sm:pt-3 pb-1 z-10 shrink-0 flex items-center justify-center">
     <div class="inline-flex items-center gap-2 bg-white px-5 py-1.5 rounded-full border-2 border-white/80 shadow-[0_4px_0_rgba(0,0,0,0.15)]">
       <span class="text-xl sm:text-2xl animate-pulse">🐾</span>
-      <h1 id="header-title" class="text-xl sm:text-3xl font-black tracking-wide text-[#58CC02] drop-shadow-sm font-['Nunito'] transition-colors duration-300">
+      <h1 id="header-title" class="text-xl sm:text-3xl font-black tracking-wide text-[#4EA826] drop-shadow-sm font-['Nunito'] transition-colors duration-300">
         FOOTPRINTS
       </h1>
       <span class="text-xl sm:text-2xl animate-pulse">🐾</span>
@@ -327,15 +327,16 @@
       const body = document.body;
       const headerTitle = document.getElementById('header-title');
       if (currentMode === 'quiz') {
-        body.style.backgroundColor = '#FF9600'; // Duolingo Fox Orange
-        if (headerTitle) headerTitle.style.color = '#FF9600';
+        body.style.backgroundColor = '#FFB366'; // Soft Pastel Orange
+        if (headerTitle) headerTitle.style.color = '#E67A1D';
       } else if (currentMode === 'result') {
-        const bg = finalPercentage >= 80 ? '#58CC02' : '#FF9600';
+        const bg = finalPercentage >= 80 ? '#7CDA6B' : '#FFB366';
+        const txt = finalPercentage >= 80 ? '#4EA826' : '#E67A1D';
         body.style.backgroundColor = bg;
-        if (headerTitle) headerTitle.style.color = bg;
+        if (headerTitle) headerTitle.style.color = txt;
       } else {
-        body.style.backgroundColor = '#58CC02'; // Duolingo Feather Green
-        if (headerTitle) headerTitle.style.color = '#58CC02';
+        body.style.backgroundColor = '#7CDA6B'; // Soft Pastel Green
+        if (headerTitle) headerTitle.style.color = '#4EA826';
       }
     }
 
