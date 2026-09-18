@@ -76,14 +76,39 @@
   <div id="canvas-wrapper" class="flex-1 w-full relative flex items-center justify-center p-1 sm:p-2 min-h-0 overflow-hidden">
     <canvas id="game-canvas"></canvas>
 
-    <!-- Start Screen Overlay (Duolingo Card Modal) -->
-    <div id="start-screen" class="absolute inset-0 z-30 flex flex-col items-center justify-center bg-[#131F24]/50 backdrop-blur-sm cursor-pointer transition-opacity duration-300">
-      <div class="bg-white p-6 sm:p-8 rounded-[32px] shadow-2xl border-4 border-[#E5E5E5] text-center flex flex-col items-center gap-3 max-w-sm mx-4 transform hover:scale-[1.02] transition-transform select-none">
-        <div class="text-6xl sm:text-7xl animate-bounce">🐾</div>
+    <!-- Start Screen Overlay (Duolingo Card Modal with English & Spanish Instructions) -->
+    <div id="start-screen" class="absolute inset-0 z-30 flex flex-col items-center justify-center bg-[#131F24]/60 backdrop-blur-sm cursor-pointer transition-opacity duration-300 p-3">
+      <div class="bg-white p-5 sm:p-7 rounded-[28px] sm:rounded-[32px] shadow-2xl border-4 border-[#E5E5E5] text-center flex flex-col items-center gap-2 sm:gap-3 max-w-md mx-auto transform hover:scale-[1.01] transition-transform select-none">
+        <div class="text-5xl sm:text-6xl animate-bounce">🐾</div>
         <h2 class="text-2xl sm:text-3xl font-black text-[#58CC02] tracking-wide font-['Nunito']">FOOTPRINTS</h2>
-        <p class="text-sm sm:text-base text-[#777777] font-extrabold font-['Nunito']">Tap anywhere to start & listen in English!</p>
-        <button class="mt-2 duo-btn-green text-white text-lg sm:text-xl font-black py-3.5 px-8 rounded-2xl shadow-md border-2 border-white pointer-events-none font-['Nunito'] tracking-wider">
-          ▶ START 🔊
+        
+        <!-- Bilingual Step-by-Step Instructions -->
+        <div class="w-full flex flex-col gap-2.5 text-left my-1">
+          <!-- Part 1: Practice -->
+          <div class="bg-[#F0FDF4] border-2 border-[#86EFAC] rounded-2xl p-2.5 sm:p-3">
+            <div class="flex items-center gap-2 text-xs sm:text-sm font-black text-[#15803D]">
+              <span>1️⃣</span> <span>PART 1 / PRIMERA PARTE (Practice):</span>
+            </div>
+            <p class="text-xs sm:text-sm font-black text-[#166534] mt-0.5 leading-snug">
+              Touch the objects to listen and count together! 🔊<br>
+              <span class="text-[#15803D] font-extrabold italic">¡Toca los objetos para escuchar y contar juntos!</span>
+            </p>
+          </div>
+
+          <!-- Part 2: Quiz -->
+          <div class="bg-[#FFF7ED] border-2 border-[#FDBA74] rounded-2xl p-2.5 sm:p-3">
+            <div class="flex items-center gap-2 text-xs sm:text-sm font-black text-[#C2410C]">
+              <span>2️⃣</span> <span>PART 2 / SEGUNDA PARTE (Quiz):</span>
+            </div>
+            <p class="text-xs sm:text-sm font-black text-[#9A3412] mt-0.5 leading-snug">
+              Touch objects to mark them, you must count on your own without help! 🧠<br>
+              <span class="text-[#C2410C] font-extrabold italic">¡Toca los objetos para marcarlos, tú debes contar sin ayuda!</span>
+            </p>
+          </div>
+        </div>
+
+        <button class="w-full mt-1 duo-btn-green text-white text-base sm:text-lg font-black py-3 px-6 rounded-2xl shadow-md border-2 border-white pointer-events-none font-['Nunito'] tracking-wider">
+          ▶ START / COMENZAR 🔊
         </button>
       </div>
     </div>
@@ -372,7 +397,14 @@
         setTimeout(() => startOverlay.style.display = 'none', 300);
       }
 
-      announceCurrentProblem();
+      // Voice speaks the explanation from the welcome card before launching problem 1
+      const welcomeExplanation = "Welcome to Footprints! Part 1: Touch the objects to listen and count together! Part 2: In the quiz, touch the objects to mark them, and count on your own without help! Let's start!";
+
+      speakEnglish(welcomeExplanation, () => {
+        setTimeout(() => {
+          announceCurrentProblem();
+        }, 300);
+      });
     }
 
     function announceCurrentProblem() {
@@ -581,7 +613,7 @@
 
       updateThemeBackground();
       rebuildLayout();
-      speakEnglish("Great job practicing! Welcome to the Addition Quiz Unit! 10 questions. Touch to mark items, no hints!", () => {
+      speakEnglish("Great job practicing! Welcome to the Addition Quiz Unit! 10 questions. Touch objects to mark them, now you must count on your own without help!", () => {
         announceCurrentProblem();
       });
     }
@@ -1251,27 +1283,49 @@
         ctx.fillText(selectedAnswer !== null ? `${selectedAnswer}` : '?', 625, eqBarY + 1);
       }
 
-      // Feedback Text Pill with high-contrast background
+      // Feedback Text Pill with English and Spanish explanations
       const feedbackY = 516;
-      let fbText = '';
-      let fbBg = 'rgba(0, 0, 0, 0.18)';
+      let fbEnText = '';
+      let fbEsText = '';
+      let fbBg = 'rgba(0, 0, 0, 0.22)';
+
       if (isCorrect) {
-        fbText = streakCount >= 3 ? `🔥 INCREDIBLE! ${streakCount} IN A ROW! 🔥` : '🌟 AMAZING JOB! WELL DONE! 🌟';
-        fbBg = 'rgba(0, 0, 0, 0.25)';
-      } else if (selectedAnswer !== null) {
-        fbText = currentMode === 'quiz' ? `Oops! ${prob.a} + ${prob.b} = ${prob.a + prob.b} 💡` : 'Oops! Try counting the items one by one! 😊';
+        fbEnText = streakCount >= 3 ? `🔥 INCREDIBLE! ${streakCount} IN A ROW! 🔥` : '🌟 AMAZING JOB! WELL DONE! 🌟';
+        fbEsText = streakCount >= 3 ? '¡Increíble! ¡Gran racha de respuestas!' : '¡Excelente trabajo! ¡Muy bien hecho!';
         fbBg = 'rgba(0, 0, 0, 0.28)';
+      } else if (selectedAnswer !== null) {
+        fbEnText = currentMode === 'quiz' ? `Oops! ${prob.a} + ${prob.b} = ${prob.a + prob.b} 💡` : 'Oops! Try counting the items one by one! 😊';
+        fbEsText = currentMode === 'quiz' ? '¡Ánimo! Pasamos a la siguiente pregunta.' : '¡Inténtalo otra vez! Cuenta uno por uno.';
+        fbBg = 'rgba(0, 0, 0, 0.30)';
       } else {
-        fbText = currentMode === 'quiz' ? 'Touch items to mark them, then choose your answer:' : 'Touch items to count, then tap your answer below:';
+        if (currentMode === 'quiz') {
+          fbEnText = 'Touch items to mark them • Count on your own without help!';
+          fbEsText = '¡Toca los objetos para marcarlos • Cuenta tú solito sin ayuda!';
+        } else {
+          fbEnText = 'Touch items to listen and count together! 🔊';
+          fbEsText = '¡Toca los objetos para escuchar y contar juntos! 🔊';
+        }
       }
 
-      ctx.font = '900 17px "Nunito", "Fredoka One"';
-      const fbMetrics = ctx.measureText(fbText);
-      drawRoundedRect(W / 2 - fbMetrics.width / 2 - 18, feedbackY - 16, fbMetrics.width + 36, 32, 16, fbBg);
+      ctx.font = '900 15px "Nunito", "Fredoka One"';
+      const w1 = ctx.measureText(fbEnText).width;
+      ctx.font = '800 13px "Nunito"';
+      const w2 = ctx.measureText(fbEsText).width;
+      const maxW = Math.max(w1, w2) + 36;
+
+      drawRoundedRect(W / 2 - maxW / 2, feedbackY - 20, maxW, 40, 18, fbBg);
+
+      // Line 1: English
       ctx.fillStyle = '#FFFFFF';
+      ctx.font = '900 15px "Nunito", "Fredoka One"';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(fbText, W / 2, feedbackY);
+      ctx.fillText(fbEnText, W / 2, feedbackY - 7);
+
+      // Line 2: Spanish explanation
+      ctx.fillStyle = '#FFF8DB';
+      ctx.font = '800 13px "Nunito"';
+      ctx.fillText(fbEsText, W / 2, feedbackY + 11);
 
       // Streak celebration overlay
       if (streakCelebrationTimer > 0) {
