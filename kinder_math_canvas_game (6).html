@@ -1,0 +1,1386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>FOOTPRINTS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700;800;900&family=Quicksand:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      touch-action: manipulation;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      background: #58CC02;
+      transition: background-color 0.5s ease;
+      font-family: 'Nunito', 'Fredoka One', cursive, sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    #game-canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+
+    @keyframes screenShake {
+      0%, 100% { transform: translate(0, 0) rotate(0deg); }
+      15% { transform: translate(-12px, -8px) rotate(-1.5deg); }
+      30% { transform: translate(12px, 8px) rotate(1.5deg); }
+      45% { transform: translate(-10px, 6px) rotate(-1deg); }
+      60% { transform: translate(10px, -6px) rotate(1deg); }
+      75% { transform: translate(-6px, 4px) rotate(-0.5deg); }
+      90% { transform: translate(6px, -3px) rotate(0.5deg); }
+    }
+    .shake-active {
+      animation: screenShake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+    }
+
+    /* Duolingo 3D button utility */
+    .duo-btn-green {
+      background-color: #58CC02;
+      border-bottom: 5px solid #46A302;
+      transition: transform 0.08s ease, border-bottom-width 0.08s ease;
+    }
+    .duo-btn-green:active {
+      transform: translateY(3px);
+      border-bottom-width: 2px;
+    }
+  </style>
+</head>
+<body class="relative flex flex-col justify-between items-center w-screen h-screen overflow-hidden select-none bg-[#58CC02] transition-colors duration-500">
+  <!-- Title Header: FOOTPRINTS (Duolingo Style Badge) -->
+  <header class="w-full text-center pt-2 sm:pt-3 pb-1 z-10 shrink-0 flex items-center justify-center">
+    <div class="inline-flex items-center gap-2 bg-white px-5 py-1.5 rounded-full border-2 border-white/80 shadow-[0_4px_0_rgba(0,0,0,0.15)]">
+      <span class="text-xl sm:text-2xl animate-pulse">🐾</span>
+      <h1 id="header-title" class="text-xl sm:text-3xl font-black tracking-wide text-[#58CC02] drop-shadow-sm font-['Nunito'] transition-colors duration-300">
+        FOOTPRINTS
+      </h1>
+      <span class="text-xl sm:text-2xl animate-pulse">🐾</span>
+    </div>
+  </header>
+
+  <!-- Interactive Game Canvas Area -->
+  <div id="canvas-wrapper" class="flex-1 w-full relative flex items-center justify-center p-1 sm:p-2 min-h-0 overflow-hidden">
+    <canvas id="game-canvas"></canvas>
+
+    <!-- Start Screen Overlay (Duolingo Card Modal) -->
+    <div id="start-screen" class="absolute inset-0 z-30 flex flex-col items-center justify-center bg-[#131F24]/50 backdrop-blur-sm cursor-pointer transition-opacity duration-300">
+      <div class="bg-white p-6 sm:p-8 rounded-[32px] shadow-2xl border-4 border-[#E5E5E5] text-center flex flex-col items-center gap-3 max-w-sm mx-4 transform hover:scale-[1.02] transition-transform select-none">
+        <div class="text-6xl sm:text-7xl animate-bounce">🐾</div>
+        <h2 class="text-2xl sm:text-3xl font-black text-[#58CC02] tracking-wide font-['Nunito']">FOOTPRINTS</h2>
+        <p class="text-sm sm:text-base text-[#777777] font-extrabold font-['Nunito']">Tap anywhere to start & listen in English!</p>
+        <button class="mt-2 duo-btn-green text-white text-lg sm:text-xl font-black py-3.5 px-8 rounded-2xl shadow-md border-2 border-white pointer-events-none font-['Nunito'] tracking-wider">
+          ▶ START 🔊
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer: By: Ing. Milko Gonzales C. -->
+  <footer class="w-full text-center pb-2 pt-1 text-xs sm:text-sm text-white font-black tracking-wider z-10 shrink-0 font-['Nunito'] drop-shadow-sm">
+    By: Ing. Milko Gonzales C.
+  </footer>
+
+  <script>
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    let audioUnlocked = false;
+
+    function playTone(freq, type = 'sine', duration = 0.15, vol = 0.25) {
+      try {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.7, audioCtx.currentTime + duration);
+        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {
+        console.warn('Tone error:', e);
+      }
+    }
+
+    function playPop(pitchStep = 1) {
+      const baseFreq = 260 + (pitchStep * 45);
+      playTone(baseFreq, 'triangle', 0.18, 0.3);
+    }
+
+    function playSuccessFanfare() {
+      const notes = [440, 554.37, 659.25, 880];
+      notes.forEach((note, idx) => {
+        setTimeout(() => playTone(note, 'sine', 0.22, 0.35), idx * 110);
+      });
+    }
+
+    function playBoing() {
+      playTone(200, 'sawtooth', 0.2, 0.2);
+    }
+
+    const NUM_WORDS_EN = [
+      'Zero', 'One', 'Two', 'Three', 'Four', 'Five', 
+      'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen'
+    ];
+
+    window._activeUtterances = new Set();
+    let cachedVoices = [];
+    function loadVoices() {
+      if ('speechSynthesis' in window) {
+        cachedVoices = window.speechSynthesis.getVoices();
+      }
+    }
+    if ('speechSynthesis' in window) {
+      loadVoices();
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+
+    function unlockAudioEngine() {
+      if (!audioUnlocked) {
+        audioUnlocked = true;
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.resume();
+          const prime = new SpeechSynthesisUtterance(' ');
+          prime.volume = 0.01;
+          window.speechSynthesis.speak(prime);
+        }
+      }
+    }
+    ['pointerdown', 'touchstart', 'mousedown', 'keydown'].forEach(evt => {
+      window.addEventListener(evt, unlockAudioEngine, { passive: true });
+    });
+
+    function speakEnglish(text, onComplete = null) {
+      unlockAudioEngine();
+      if (!('speechSynthesis' in window)) {
+        if (typeof onComplete === 'function') onComplete();
+        return;
+      }
+
+      try {
+        window.speechSynthesis.cancel();
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'en-US';
+        utterance.pitch = 1.15;
+        utterance.rate = 0.90;
+        utterance.volume = 1.0;
+
+        if (cachedVoices && cachedVoices.length > 0) {
+          const usDefaultVoice = cachedVoices.find(v => v.lang === 'en-US' && v.default)
+            || cachedVoices.find(v => v.lang === 'en-US')
+            || cachedVoices.find(v => v.lang && v.lang.startsWith('en'));
+          if (usDefaultVoice) utterance.voice = usDefaultVoice;
+        }
+
+        window._activeUtterances.add(utterance);
+
+        let isFinished = false;
+        const handleSpeechEnd = () => {
+          if (isFinished) return;
+          isFinished = true;
+          window._activeUtterances.delete(utterance);
+          if (typeof onComplete === 'function') onComplete();
+        };
+
+        utterance.onend = handleSpeechEnd;
+        utterance.onerror = handleSpeechEnd;
+
+        const estDurationMs = Math.max(2500, (text.split(' ').length * 620) + 1200);
+        setTimeout(() => {
+          if (!isFinished && typeof onComplete === 'function') {
+            handleSpeechEnd();
+          }
+        }, estDurationMs);
+
+        setTimeout(() => {
+          window.speechSynthesis.speak(utterance);
+        }, 20);
+      } catch (err) {
+        console.warn('Web Speech error:', err);
+        if (typeof onComplete === 'function') onComplete();
+      }
+    }
+
+    const ACTIVITIES = [
+      {
+        id: 'animals',
+        title: '🐾 Animal Math',
+        color: '#FF6584',
+        accent: '#FFD3E2',
+        sheetTitle: 'Count and write the number sentence!',
+        problems: [
+          { a: 4, b: 3, itemA: '🐝', nameA: 'bees', itemB: '🐝', nameB: 'bees' },
+          { a: 3, b: 5, itemA: '🐸', nameA: 'frogs', itemB: '🐸', nameB: 'frogs' },
+          { a: 2, b: 4, itemA: '🦎', nameA: 'lizards', itemB: '🦎', nameB: 'lizards' },
+          { a: 5, b: 4, itemA: '🦔', nameA: 'hedgehogs', itemB: '🦔', nameB: 'hedgehogs' },
+          { a: 6, b: 3, itemA: '🦋', nameA: 'butterflies', itemB: '🦋', nameB: 'butterflies' },
+          { a: 4, b: 1, itemA: '🐼', nameA: 'pandas', itemB: '🐼', nameB: 'pandas' }
+        ]
+      },
+      {
+        id: 'food',
+        title: '🍲 Food Facts',
+        color: '#38B000',
+        accent: '#D8F3DC',
+        sheetTitle: 'Count the yummy veggies for the soup pot!',
+        problems: [
+          { a: 3, b: 4, itemA: '🌽', nameA: 'corn', itemB: '🫘', nameB: 'beans' },
+          { a: 2, b: 3, itemA: '🥕', nameA: 'carrots', itemB: '🍅', nameB: 'tomatoes' },
+          { a: 4, b: 2, itemA: '🌽', nameA: 'corn', itemB: '🍅', nameB: 'tomatoes' },
+          { a: 3, b: 5, itemA: '🫘', nameA: 'beans', itemB: '🥔', nameB: 'potatoes' },
+          { a: 2, b: 2, itemA: '🥔', nameA: 'potatoes', itemB: '🥕', nameB: 'carrots' },
+          { a: 4, b: 5, itemA: '🍅', nameA: 'tomatoes', itemB: '🫘', nameB: 'beans' }
+        ]
+      },
+      {
+        id: 'cookies',
+        title: '🍪 I Can Add! (Cookies)',
+        color: '#E07A5F',
+        accent: '#F4F1DE',
+        sheetTitle: 'Count the chocolate chips on the cookies!',
+        problems: [
+          { a: 6, b: 3, isCookie: true },
+          { a: 2, b: 4, isCookie: true },
+          { a: 4, b: 4, isCookie: true },
+          { a: 3, b: 4, isCookie: true },
+          { a: 3, b: 2, isCookie: true },
+          { a: 6, b: 2, isCookie: true }
+        ]
+      }
+    ];
+
+    // Quiz Questions (10 items without spoken counting)
+    const QUIZ_PROBLEMS = [
+      { a: 3, b: 2, itemA: '🐝', itemB: '🐝', sourceAct: 0 },
+      { a: 4, b: 4, isCookie: true, sourceAct: 2 },
+      { a: 2, b: 5, itemA: '🥕', itemB: '🍅', sourceAct: 1 },
+      { a: 5, b: 3, itemA: '🐸', itemB: '🐸', sourceAct: 0 },
+      { a: 3, b: 3, isCookie: true, sourceAct: 2 },
+      { a: 4, b: 2, itemA: '🌽', itemB: '🥔', sourceAct: 1 },
+      { a: 6, b: 2, itemA: '🦋', itemB: '🦋', sourceAct: 0 },
+      { a: 2, b: 3, isCookie: true, sourceAct: 2 },
+      { a: 5, b: 4, itemA: '🍅', itemB: '🫘', sourceAct: 1 },
+      { a: 3, b: 6, itemA: '🦔', itemB: '🦔', sourceAct: 0 }
+    ];
+
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+
+    // Modes: 'practice', 'quiz', 'result'
+    let currentMode = 'practice';
+    let currentActivityIdx = 0;
+    let currentProblemIdx = 0;
+
+    // Track practice completions (6 in each category)
+    const practiceCompleted = { 0: new Set(), 1: new Set(), 2: new Set() };
+    
+    // Cards needing extra attention (highlighted in yellow upon quiz failure)
+    let needsAttentionActivities = new Set();
+    let attentionNoticeActive = false;
+
+    // Quiz state
+    let quizProblemIdx = 0;
+    let quizScore = 0;
+    let quizErrorsByActivity = {};
+    let finalPercentage = 0;
+
+    let selectedAnswer = null;
+    let isCorrect = false;
+    let isAnswerLocked = false;
+    let particles = [];
+    let itemsToCount = [];
+    let interactiveButtons = [];
+    let totalCountedSoFar = 0;
+    let bounceTicker = 0;
+    let firstInstructionSpoken = false;
+
+    // Streak & Shake
+    let streakCount = 0;
+    let streakCelebrationTimer = 0;
+    let canvasShakeDuration = 0;
+
+    let W = 920;
+    let H = 680;
+    let scaleRatio = 1;
+
+    function updateThemeBackground() {
+      const body = document.body;
+      const headerTitle = document.getElementById('header-title');
+      if (currentMode === 'quiz') {
+        body.style.backgroundColor = '#FF9600'; // Duolingo Fox Orange
+        if (headerTitle) headerTitle.style.color = '#FF9600';
+      } else if (currentMode === 'result') {
+        const bg = finalPercentage >= 80 ? '#58CC02' : '#FF9600';
+        body.style.backgroundColor = bg;
+        if (headerTitle) headerTitle.style.color = bg;
+      } else {
+        body.style.backgroundColor = '#58CC02'; // Duolingo Feather Green
+        if (headerTitle) headerTitle.style.color = '#58CC02';
+      }
+    }
+
+    function resizeCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const availW = Math.max(320, rect.width);
+      const availH = Math.max(480, rect.height);
+
+      W = 920;
+      H = 680;
+      scaleRatio = Math.min(availW / W, availH / H);
+
+      canvas.width = W * scaleRatio * dpr;
+      canvas.height = H * scaleRatio * dpr;
+      canvas.style.width = `${W * scaleRatio}px`;
+      canvas.style.height = `${H * scaleRatio}px`;
+
+      ctx.setTransform(scaleRatio * dpr, 0, 0, scaleRatio * dpr, 0, 0);
+      rebuildLayout();
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    function triggerInitialInstructions() {
+      if (firstInstructionSpoken) return;
+      firstInstructionSpoken = true;
+      unlockAudioEngine();
+      playPop(4);
+
+      const startOverlay = document.getElementById('start-screen');
+      if (startOverlay) {
+        startOverlay.style.opacity = '0';
+        setTimeout(() => startOverlay.style.display = 'none', 300);
+      }
+
+      announceCurrentProblem();
+    }
+
+    function announceCurrentProblem() {
+      if (currentMode === 'quiz') {
+        const qp = QUIZ_PROBLEMS[quizProblemIdx];
+        speakEnglish(`Quiz time! Question ${quizProblemIdx + 1}. How much is ${qp.a} plus ${qp.b}?`);
+      } else {
+        const prob = ACTIVITIES[currentActivityIdx].problems[currentProblemIdx];
+        if (prob.isCookie) {
+          speakEnglish(`How many chocolate chips in all? ${prob.a} plus ${prob.b}`);
+        } else {
+          speakEnglish(`Count with me! How much is ${prob.a} plus ${prob.b}?`);
+        }
+      }
+    }
+
+    function rebuildLayout() {
+      itemsToCount = [];
+      interactiveButtons = [];
+
+      if (currentMode === 'result') {
+        interactiveButtons.push({
+          type: 'retry_or_continue',
+          x: W / 2 - 130,
+          y: 490,
+          w: 260,
+          h: 60,
+          text: finalPercentage < 80 ? '🔄 Practice Again' : '⭐ Play Quiz Again'
+        });
+        return;
+      }
+
+      if (currentMode === 'practice') {
+        const tabWidth = 240;
+        const tabHeight = 44;
+        const startX = (W - (ACTIVITIES.length * (tabWidth + 15))) / 2;
+
+        ACTIVITIES.forEach((activity, idx) => {
+          interactiveButtons.push({
+            type: 'tab',
+            idx: idx,
+            x: startX + idx * (tabWidth + 15),
+            y: 20,
+            w: tabWidth,
+            h: tabHeight,
+            text: activity.title,
+            active: idx === currentActivityIdx
+          });
+        });
+
+        interactiveButtons.push({
+          type: 'speak',
+          x: 40,
+          y: 80,
+          w: 50,
+          h: 46,
+          text: '🔊'
+        });
+
+        interactiveButtons.push({
+          type: 'reset',
+          x: 105,
+          y: 80,
+          w: 50,
+          h: 46,
+          text: '🔄'
+        });
+
+        interactiveButtons.push({
+          type: 'prev',
+          x: W - 165,
+          y: 80,
+          w: 50,
+          h: 46,
+          text: '◀'
+        });
+
+        interactiveButtons.push({
+          type: 'next',
+          x: W - 100,
+          y: 80,
+          w: 50,
+          h: 46,
+          text: '▶'
+        });
+      }
+
+      // Card setup for objects
+      const cardY = 145;
+      const cardW = 320;
+      const cardH = 225;
+      const leftCardX = 85;
+      const rightCardX = 515;
+
+      const currentProb = (currentMode === 'quiz') 
+        ? QUIZ_PROBLEMS[quizProblemIdx] 
+        : ACTIVITIES[currentActivityIdx].problems[currentProblemIdx];
+
+      if (currentProb.isCookie) {
+        setupCookieChips(currentProb.a, leftCardX + cardW / 2, cardY + cardH / 2, 85, 'A');
+        setupCookieChips(currentProb.b, rightCardX + cardW / 2, cardY + cardH / 2, 85, 'B');
+      } else {
+        setupStandardItems(currentProb.a, currentProb.itemA || currentProb.item, leftCardX, cardY, cardW, cardH, 'A');
+        setupStandardItems(currentProb.b, currentProb.itemB || currentProb.item, rightCardX, cardY, cardW, cardH, 'B');
+      }
+
+      // Bottom Number Pad (1 to 11)
+      const numpadY = 575;
+      const btnSize = 56;
+      const gap = 14;
+      const totalNumpadW = 11 * (btnSize + gap) - gap;
+      const numpadStartX = (W - totalNumpadW) / 2;
+
+      for (let n = 1; n <= 11; n++) {
+        interactiveButtons.push({
+          type: 'number',
+          num: n,
+          x: numpadStartX + (n - 1) * (btnSize + gap),
+          y: numpadY,
+          w: btnSize,
+          h: btnSize,
+          text: `${n}`
+        });
+      }
+    }
+
+    function setupStandardItems(count, icon, boxX, boxY, boxW, boxH, group) {
+      const cols = count > 4 ? 3 : 2;
+      const rows = Math.ceil(count / cols);
+      const cellW = (boxW - 40) / cols;
+      const cellH = (boxH - 40) / rows;
+
+      for (let i = 0; i < count; i++) {
+        const c = i % cols;
+        const r = Math.floor(i / cols);
+        const x = boxX + 20 + c * cellW + cellW / 2;
+        const y = boxY + 25 + r * cellH + cellH / 2;
+
+        itemsToCount.push({
+          group,
+          icon: icon || '🐾',
+          x,
+          y,
+          radius: 32,
+          counted: false,
+          countNumber: 0,
+          scale: 1,
+          isChip: false
+        });
+      }
+    }
+
+    function setupCookieChips(count, centerX, centerY, cookieRadius, group) {
+      const chipPositions = [
+        { dx: -35, dy: -30 },
+        { dx: 30, dy: -35 },
+        { dx: 0, dy: 0 },
+        { dx: -45, dy: 25 },
+        { dx: 38, dy: 28 },
+        { dx: -2, dy: -50 },
+        { dx: 4, dy: 52 },
+        { dx: -55, dy: -5 }
+      ];
+
+      for (let i = 0; i < count; i++) {
+        const pos = chipPositions[i % chipPositions.length];
+        itemsToCount.push({
+          group,
+          icon: '🍪',
+          x: centerX + pos.dx,
+          y: centerY + pos.dy,
+          radius: 18,
+          counted: false,
+          countNumber: 0,
+          scale: 1,
+          isChip: true
+        });
+      }
+    }
+
+    function loadProblem(activityIdx, problemIdx, shouldSpeak = true) {
+      currentMode = 'practice';
+      currentActivityIdx = activityIdx;
+      currentProblemIdx = problemIdx;
+      selectedAnswer = null;
+      isCorrect = false;
+      isAnswerLocked = false;
+      totalCountedSoFar = 0;
+      particles = [];
+
+      updateThemeBackground();
+      rebuildLayout();
+      if (shouldSpeak) announceCurrentProblem();
+    }
+
+    function startQuizMode() {
+      currentMode = 'quiz';
+      quizProblemIdx = 0;
+      quizScore = 0;
+      quizErrorsByActivity = {};
+      selectedAnswer = null;
+      isCorrect = false;
+      isAnswerLocked = false;
+      totalCountedSoFar = 0;
+      particles = [];
+
+      updateThemeBackground();
+      rebuildLayout();
+      speakEnglish("Great job practicing! Welcome to the Addition Quiz Unit! 10 questions. Touch to mark items, no hints!", () => {
+        announceCurrentProblem();
+      });
+    }
+
+    function loadNextQuizProblem() {
+      selectedAnswer = null;
+      isCorrect = false;
+      isAnswerLocked = false;
+      totalCountedSoFar = 0;
+      particles = [];
+      rebuildLayout();
+      announceCurrentProblem();
+    }
+
+    function showFinalResults() {
+      currentMode = 'result';
+      finalPercentage = Math.round((quizScore / QUIZ_PROBLEMS.length) * 100);
+      updateThemeBackground();
+      rebuildLayout();
+
+      if (finalPercentage < 80) {
+        // Did not pass: identify which areas made errors
+        needsAttentionActivities.clear();
+        Object.keys(quizErrorsByActivity).forEach(actId => {
+          needsAttentionActivities.add(parseInt(actId, 10));
+        });
+        if (needsAttentionActivities.size === 0) {
+          needsAttentionActivities.add(0);
+          needsAttentionActivities.add(1);
+          needsAttentionActivities.add(2);
+        }
+        attentionNoticeActive = true;
+
+        playBoing();
+        speakEnglish(`Your score is ${finalPercentage} percent. Let's practice again! Pay special attention to the cards in yellow!`);
+      } else {
+        attentionNoticeActive = false;
+        needsAttentionActivities.clear();
+        playSuccessFanfare();
+        createCelebrationConfetti();
+        speakEnglish(`Congratulations! Outstanding job! Your score is ${finalPercentage} percent! You are an Addition Star!`);
+      }
+    }
+
+    function getCanvasCoordinates(e) {
+      const rect = canvas.getBoundingClientRect();
+      let clientX, clientY;
+      if (e.touches && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+      }
+      return {
+        x: (clientX - rect.left) / scaleRatio,
+        y: (clientY - rect.top) / scaleRatio
+      };
+    }
+
+    function handleInteraction(e) {
+      e.preventDefault();
+      unlockAudioEngine();
+
+      if (!firstInstructionSpoken) {
+        triggerInitialInstructions();
+        return;
+      }
+
+      const pos = getCanvasCoordinates(e);
+
+      // Buttons
+      for (const btn of interactiveButtons) {
+        if (pos.x >= btn.x && pos.x <= btn.x + btn.w && pos.y >= btn.y && pos.y <= btn.y + btn.h) {
+          playPop(6);
+
+          if (btn.type === 'retry_or_continue') {
+            if (finalPercentage < 80) {
+              const firstYellow = Array.from(needsAttentionActivities)[0] || 0;
+              loadProblem(firstYellow, 0, true);
+            } else {
+              startQuizMode();
+            }
+            return;
+          }
+          if (btn.type === 'tab') {
+            loadProblem(btn.idx, 0, true);
+            return;
+          }
+          if (btn.type === 'prev') {
+            const total = ACTIVITIES[currentActivityIdx].problems.length;
+            const nextIdx = (currentProblemIdx - 1 + total) % total;
+            loadProblem(currentActivityIdx, nextIdx, true);
+            return;
+          }
+          if (btn.type === 'next') {
+            advancePracticeOrQuiz();
+            return;
+          }
+          if (btn.type === 'speak') {
+            announceCurrentProblem();
+            return;
+          }
+          if (btn.type === 'reset') {
+            loadProblem(currentActivityIdx, currentProblemIdx, false);
+            speakEnglish('Count again!');
+            return;
+          }
+          if (btn.type === 'number') {
+            checkUserAnswer(btn.num);
+            return;
+          }
+        }
+      }
+
+      // Interactive Items
+      for (let i = 0; i < itemsToCount.length; i++) {
+        const item = itemsToCount[i];
+        const dist = Math.hypot(pos.x - item.x, pos.y - item.y);
+
+        if (dist <= item.radius * 1.3) {
+          if (currentMode === 'quiz') {
+            // QUIZ MODE: NO spoken counting. Only visually marks/distinguishes the item.
+            item.counted = !item.counted;
+            item.scale = 1.3;
+            playPop(3);
+            createSparkles(item.x, item.y, '#FFD166');
+          } else {
+            // PRACTICE MODE: Counts aloud in English
+            if (!item.counted) {
+              item.counted = true;
+              totalCountedSoFar++;
+              item.countNumber = totalCountedSoFar;
+              item.scale = 1.45;
+              createSparkles(item.x, item.y, '#FFD166');
+              playPop(totalCountedSoFar);
+
+              const word = NUM_WORDS_EN[totalCountedSoFar] || `${totalCountedSoFar}`;
+              speakEnglish(word);
+            } else {
+              item.scale = 1.35;
+              createSparkles(item.x, item.y, '#06D6A0');
+              playPop(item.countNumber);
+              const word = NUM_WORDS_EN[item.countNumber] || `${item.countNumber}`;
+              speakEnglish(word);
+            }
+          }
+          return;
+        }
+      }
+    }
+
+    canvas.addEventListener('pointerdown', handleInteraction);
+
+    function checkUserAnswer(num) {
+      if (isCorrect || isAnswerLocked) return;
+
+      const prob = (currentMode === 'quiz') 
+        ? QUIZ_PROBLEMS[quizProblemIdx] 
+        : ACTIVITIES[currentActivityIdx].problems[currentProblemIdx];
+
+      const sum = prob.a + prob.b;
+      selectedAnswer = num;
+
+      if (num === sum) {
+        isCorrect = true;
+        isAnswerLocked = true;
+        streakCount++;
+        playSuccessFanfare();
+        createCelebrationConfetti();
+
+        if (currentMode === 'quiz') {
+          quizScore++;
+          const praiseText = streakCount >= 3 
+            ? `Super streak! ${sum} is correct!` 
+            : `Correct! ${prob.a} plus ${prob.b} equals ${sum}!`;
+
+          if (streakCount >= 3) {
+            streakCelebrationTimer = 140;
+            createStreakBurst();
+          }
+
+          speakEnglish(praiseText, () => {
+            setTimeout(() => {
+              quizProblemIdx++;
+              if (quizProblemIdx >= QUIZ_PROBLEMS.length) {
+                showFinalResults();
+              } else {
+                loadNextQuizProblem();
+              }
+            }, 500);
+          });
+        } else {
+          // Practice Mode
+          practiceCompleted[currentActivityIdx].add(currentProblemIdx);
+
+          const praiseText = streakCount >= 3
+            ? `Super streak! ${streakCount} in a row! Amazing job!`
+            : `Super! ${prob.a} plus ${prob.b} equals ${sum}! Great job!`;
+
+          if (streakCount >= 3) {
+            streakCelebrationTimer = 160;
+            createStreakBurst();
+          }
+
+          speakEnglish(praiseText, () => {
+            setTimeout(() => {
+              advancePracticeOrQuiz();
+            }, 500);
+          });
+        }
+      } else {
+        streakCount = 0;
+        triggerScreenShake();
+        playBoing();
+
+        if (currentMode === 'quiz') {
+          // In Quiz mode: counted as wrong for the score immediately
+          isAnswerLocked = true;
+          const actSource = prob.sourceAct !== undefined ? prob.sourceAct : 0;
+          quizErrorsByActivity[actSource] = (quizErrorsByActivity[actSource] || 0) + 1;
+
+          speakEnglish(`Oops! That's not correct. ${prob.a} plus ${prob.b} equals ${sum}. Let's keep going!`, () => {
+            setTimeout(() => {
+              quizProblemIdx++;
+              if (quizProblemIdx >= QUIZ_PROBLEMS.length) {
+                showFinalResults();
+              } else {
+                loadNextQuizProblem();
+              }
+            }, 600);
+          });
+        } else {
+          // Practice Mode allows trying again
+          isCorrect = false;
+          speakEnglish("Try again! Count carefully!");
+        }
+      }
+    }
+
+    function advancePracticeOrQuiz() {
+      if (currentMode === 'quiz') {
+        quizProblemIdx++;
+        if (quizProblemIdx >= QUIZ_PROBLEMS.length) {
+          showFinalResults();
+        } else {
+          loadNextQuizProblem();
+        }
+        return;
+      }
+
+      // Practice progression: check if all 3 activities are complete (6 problems each)
+      const curTotal = ACTIVITIES[currentActivityIdx].problems.length;
+      if (currentProblemIdx + 1 < curTotal) {
+        loadProblem(currentActivityIdx, currentProblemIdx + 1, true);
+      } else {
+        // Reached end of this activity
+        if (currentActivityIdx + 1 < ACTIVITIES.length) {
+          loadProblem(currentActivityIdx + 1, 0, true);
+        } else {
+          // Check if all 18 problems have been practiced
+          const allPracticed = (practiceCompleted[0].size >= 6) && 
+                               (practiceCompleted[1].size >= 6) && 
+                               (practiceCompleted[2].size >= 6);
+
+          if (allPracticed || (currentActivityIdx === 2 && currentProblemIdx === 5)) {
+            startQuizMode();
+          } else {
+            loadProblem(0, 0, true);
+          }
+        }
+      }
+    }
+
+    function triggerScreenShake() {
+      canvasShakeDuration = 25;
+      const wrapper = document.getElementById('canvas-wrapper');
+      if (wrapper) {
+        wrapper.classList.remove('shake-active');
+        void wrapper.offsetWidth;
+        wrapper.classList.add('shake-active');
+        setTimeout(() => wrapper.classList.remove('shake-active'), 550);
+      }
+    }
+
+    function createStreakBurst() {
+      for (let i = 0; i < 40; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 4 + Math.random() * 6;
+        particles.push({
+          x: W / 2,
+          y: 200,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          size: 8 + Math.random() * 8,
+          color: ['#FFD166', '#FF5E7E', '#FF9F1C', '#E71D36', '#FFE66D'][Math.floor(Math.random() * 5)],
+          life: 1.0,
+          decay: 0.02
+        });
+      }
+    }
+
+    function createSparkles(x, y, color) {
+      for (let i = 0; i < 9; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 1.5 + Math.random() * 3.5;
+        particles.push({
+          x,
+          y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          size: 4 + Math.random() * 5,
+          color: ['#FFD166', '#06D6A0', '#118AB2', '#FF6B6B'][Math.floor(Math.random() * 4)],
+          life: 1.0,
+          decay: 0.04 + Math.random() * 0.04
+        });
+      }
+    }
+
+    function createCelebrationConfetti() {
+      for (let i = 0; i < 70; i++) {
+        const x = W / 2 + (Math.random() - 0.5) * 350;
+        const y = 300 + (Math.random() - 0.5) * 150;
+        particles.push({
+          x,
+          y,
+          vx: (Math.random() - 0.5) * 10,
+          vy: -6 - Math.random() * 8,
+          size: 7 + Math.random() * 7,
+          color: ['#FF477E', '#FFB703', '#38B000', '#4CC9F0', '#9B5DE5'][Math.floor(Math.random() * 5)],
+          life: 1.0,
+          decay: 0.015,
+          gravity: 0.28
+        });
+      }
+    }
+
+    function draw3DBevelRect(x, y, w, h, radius, fillColor, bevelColor, bevelDepth = 4, strokeColor = null, lineWidth = 0) {
+      // Bottom bevel shadow (3D effect)
+      drawRoundedRect(x, y + bevelDepth, w, h, radius, bevelColor, null, 0);
+      // Top main surface
+      drawRoundedRect(x, y, w, h, radius, fillColor, strokeColor, lineWidth);
+    }
+
+    function drawRoundedRect(x, y, w, h, radius, fillColor, strokeColor, lineWidth = 0) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + w - radius, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+      ctx.lineTo(x + w, y + h - radius);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+      ctx.lineTo(x + radius, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+
+      if (fillColor) {
+        ctx.fillStyle = fillColor;
+        ctx.fill();
+      }
+      if (strokeColor && lineWidth > 0) {
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = lineWidth;
+        ctx.stroke();
+      }
+    }
+
+    function drawCookiePlate(centerX, centerY, radius) {
+      ctx.save();
+      // Duolingo style cookie plate with warm tones
+      drawRoundedRect(centerX - radius - 6, centerY - radius - 6 + 4, (radius + 6) * 2, (radius + 6) * 2, radius + 6, '#D68936');
+      drawRoundedRect(centerX - radius - 6, centerY - radius - 6, (radius + 6) * 2, (radius + 6) * 2, radius + 6, '#F8B65A', '#D68936', 3);
+
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+      ctx.fillStyle = '#E8A355';
+      ctx.fill();
+      ctx.strokeStyle = '#D68936';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      ctx.fillStyle = '#C47A28';
+      const crumbOffsets = [[-20, -35], [35, 10], [-40, 20], [15, -45], [30, -30], [-10, 45]];
+      crumbOffsets.forEach(([cx, cy]) => {
+        ctx.beginPath();
+        ctx.arc(centerX + cx, centerY + cy, 3, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.restore();
+    }
+
+    function drawCookingPot(x, y, w, h, text) {
+      ctx.save();
+      // Duolingo vibrant cooking pot
+      draw3DBevelRect(x, y + 10, w, h - 10, 20, '#FF4B4B', '#EA2B2B', 4, '#D62020', 2);
+      draw3DBevelRect(x - 8, y + 6, w + 16, 14, 8, '#FF7878', '#EA2B2B', 3);
+      drawRoundedRect(x + w / 2 - 20, y - 6, 40, 14, 6, '#D62020');
+      drawRoundedRect(x + w / 2 - 14, y - 2, 28, 8, 4, '#FFF');
+
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = '#D62020';
+      ctx.beginPath();
+      ctx.arc(x - 8, y + h / 2, 10, Math.PI * 0.5, Math.PI * 1.5, false);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(x + w + 8, y + h / 2, 10, Math.PI * 1.5, Math.PI * 0.5, false);
+      ctx.stroke();
+
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '900 36px "Nunito", "Fredoka One"';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, x + w / 2, y + h / 2 + 6);
+      ctx.restore();
+    }
+
+    function render() {
+      bounceTicker += 0.05;
+      ctx.clearRect(0, 0, W, H);
+
+      ctx.save();
+      if (canvasShakeDuration > 0) {
+        const shakeMag = (canvasShakeDuration / 25) * 12;
+        const offsetX = (Math.random() - 0.5) * shakeMag;
+        const offsetY = (Math.random() - 0.5) * shakeMag;
+        ctx.translate(offsetX, offsetY);
+        canvasShakeDuration--;
+      }
+
+      // ==================== RESULT SCREEN (DUOLINGO CELEBRATION) ====================
+      if (currentMode === 'result') {
+        draw3DBevelRect(80, 65, W - 160, 530, 32, '#FFFFFF', '#E5E5E5', 6, '#E5E5E5', 2);
+
+        const isPassed = finalPercentage >= 80;
+        const themeColor = isPassed ? '#58CC02' : '#FF4B4B';
+        const shadowColor = isPassed ? '#46A302' : '#EA2B2B';
+
+        ctx.fillStyle = themeColor;
+        ctx.font = '900 36px "Nunito", "Fredoka One"';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(isPassed ? '🎉 LESSON COMPLETED! 🎉' : '💪 KEEP PRACTICING!', W / 2, 125);
+
+        // Circular Duolingo Progress Ring
+        ctx.beginPath();
+        ctx.arc(W / 2, 245, 80, 0, Math.PI * 2);
+        ctx.fillStyle = isPassed ? '#F3FCED' : '#FFF5F5';
+        ctx.fill();
+        ctx.strokeStyle = themeColor;
+        ctx.lineWidth = 8;
+        ctx.stroke();
+
+        ctx.fillStyle = themeColor;
+        ctx.font = '900 54px "Nunito", "Fredoka One"';
+        ctx.fillText(`${finalPercentage}%`, W / 2, 240);
+        ctx.fillStyle = '#777777';
+        ctx.font = '800 17px "Nunito"';
+        ctx.fillText(`${quizScore} of ${QUIZ_PROBLEMS.length} Correct`, W / 2, 280);
+
+        // Duolingo encouragement box
+        draw3DBevelRect(130, 350, W - 260, 85, 20, isPassed ? '#EAF9E6' : '#FFF9E6', isPassed ? '#D4F4CB' : '#FCE4A6', 3, isPassed ? '#58CC02' : '#FFC800', 2);
+
+        ctx.fillStyle = isPassed ? '#2E7A03' : '#A05E03';
+        ctx.font = '900 22px "Nunito", "Fredoka One"';
+        if (!isPassed) {
+          ctx.fillText("Needs more practice! Pay special attention to the yellow cards!", W / 2, 380);
+          ctx.fillStyle = '#A05E03';
+          ctx.font = '800 16px "Nunito"';
+          ctx.fillText("Tap the yellow cards to master these additions!", W / 2, 408);
+        } else {
+          ctx.fillText("🌟 Fantastic! You are an Addition Star! 🌟", W / 2, 380);
+          ctx.fillStyle = '#2E7A03';
+          ctx.font = '800 16px "Nunito"';
+          ctx.fillText("You mastered all addition concepts! Keep shining!", W / 2, 408);
+        }
+
+        // Action button (Duolingo 3D pill)
+        interactiveButtons.forEach(btn => {
+          if (btn.type === 'retry_or_continue') {
+            const btnColor = finalPercentage < 80 ? '#FFC800' : '#58CC02';
+            const btnShadow = finalPercentage < 80 ? '#E5A400' : '#46A302';
+            draw3DBevelRect(btn.x, btn.y, btn.w, btn.h, 22, btnColor, btnShadow, 5);
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = '900 22px "Nunito", "Fredoka One"';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(btn.text, btn.x + btn.w / 2, btn.y + btn.h / 2);
+          }
+        });
+
+        ctx.restore();
+        requestAnimationFrame(render);
+        return;
+      }
+
+      // ==================== PRACTICE & QUIZ SCREENS ====================
+      const prob = (currentMode === 'quiz') 
+        ? QUIZ_PROBLEMS[quizProblemIdx] 
+        : ACTIVITIES[currentActivityIdx].problems[currentProblemIdx];
+
+      // Duolingo Top Header Panel with Integrated Progress Bar
+      draw3DBevelRect(30, 70, W - 60, 68, 20, '#FFFFFF', '#E5E5E5', 4, '#E5E5E5', 2);
+
+      // Duolingo Segmented Progress Bar
+      const totalSteps = currentMode === 'quiz' ? QUIZ_PROBLEMS.length : ACTIVITIES[currentActivityIdx].problems.length;
+      const currentStep = currentMode === 'quiz' ? (quizProblemIdx + 1) : (currentProblemIdx + 1);
+      const progBarX = 175;
+      const progBarY = 118;
+      const progBarW = W - 390;
+      const progBarH = 14;
+      const fillRatio = Math.min(1.0, currentStep / totalSteps);
+
+      // Progress background
+      drawRoundedRect(progBarX, progBarY, progBarW, progBarH, 7, '#E5E5E5');
+      // Progress fill
+      if (fillRatio > 0) {
+        drawRoundedRect(progBarX, progBarY, progBarW * fillRatio, progBarH, 7, currentMode === 'quiz' ? '#1CB0F6' : '#58CC02');
+        // Gleam on progress bar
+        drawRoundedRect(progBarX + 4, progBarY + 2, Math.max(0, (progBarW * fillRatio) - 8), 4, 2, 'rgba(255,255,255,0.4)');
+      }
+
+      ctx.fillStyle = '#4B4B4B';
+      ctx.font = '900 22px "Nunito", "Fredoka One"';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+
+      if (currentMode === 'quiz') {
+        ctx.fillText(`⭐ Addition Quiz Unit`, 45, 96);
+        ctx.fillStyle = '#1CB0F6';
+        ctx.font = '800 14px "Nunito"';
+        ctx.fillText(`Question ${quizProblemIdx + 1} of ${QUIZ_PROBLEMS.length} • Score: ${quizScore}/${quizProblemIdx}`, 45, 125);
+      } else {
+        const act = ACTIVITIES[currentActivityIdx];
+        ctx.fillText(act.sheetTitle, 175, 96);
+        ctx.fillStyle = '#777777';
+        ctx.font = '800 13px "Nunito"';
+        ctx.fillText(`${currentStep} / ${totalSteps}`, progBarX + progBarW + 15, progBarY + 7);
+      }
+
+      // Yellow Attention Banner if returned from failed quiz
+      if (currentMode === 'practice' && attentionNoticeActive && needsAttentionActivities.has(currentActivityIdx)) {
+        const warnText = "⚠️ PAY EXTRA ATTENTION TO THIS ACTIVITY!";
+        ctx.font = '900 13px "Nunito", "Fredoka One"';
+        const tw = ctx.measureText(warnText).width + 24;
+        draw3DBevelRect(W / 2 - tw / 2, 142, tw, 26, 13, '#FFC800', '#E5A400', 3);
+        ctx.fillStyle = '#78350F';
+        ctx.textAlign = 'center';
+        ctx.fillText(warnText, W / 2, 154);
+      }
+
+      // Duolingo Streak Badge (Fire Icon & Pill)
+      if (streakCount > 0) {
+        const streakText = `🔥 ${streakCount}`;
+        ctx.font = '900 18px "Nunito", "Fredoka One"';
+        const strkW = ctx.measureText(streakText).width + 28;
+        const strkX = W - (currentMode === 'quiz' ? 50 : 170) - strkW;
+        draw3DBevelRect(strkX, 82, strkW, 42, 18, streakCount >= 3 ? '#FF9600' : '#FFF9E6', streakCount >= 3 ? '#E58600' : '#E5C470', 3, streakCount >= 3 ? '#E58600' : '#FFC800', 2);
+        ctx.fillStyle = streakCount >= 3 ? '#FFFFFF' : '#A05E03';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(streakText, strkX + strkW / 2, 103);
+      }
+
+      // Cards Setup: Clean Duolingo Tile Style with 3D Bevel
+      const isCardYellow = (currentMode === 'practice' && needsAttentionActivities.has(currentActivityIdx));
+      const cardBg = isCardYellow ? '#FFFDF0' : '#FFFFFF';
+      const cardBevel = isCardYellow ? '#E5A400' : '#E5E5E5';
+      const cardBorder = isCardYellow ? '#FFC800' : '#E5E5E5';
+
+      draw3DBevelRect(80, 150, 330, 225, 24, cardBg, cardBevel, 5, cardBorder, 2);
+      draw3DBevelRect(510, 150, 330, 225, 24, cardBg, cardBevel, 5, cardBorder, 2);
+
+      // Plus Sign In Center (Duolingo 3D circular token for high contrast)
+      const plusBob = Math.sin(bounceTicker * 2) * 3;
+      draw3DBevelRect(W / 2 - 28, 232 + plusBob, 56, 56, 28, '#FFFFFF', '#E5E5E5', 3, '#E5E5E5', 2);
+      ctx.fillStyle = (currentMode === 'quiz') ? '#FF9600' : '#58CC02';
+      ctx.font = '900 42px "Nunito", "Fredoka One"';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('+', W / 2, 259 + plusBob);
+
+      // Cookie Plates
+      if (prob.isCookie) {
+        drawCookiePlate(80 + 330 / 2, 150 + 225 / 2, 88);
+        drawCookiePlate(510 + 330 / 2, 150 + 225 / 2, 88);
+      }
+
+      // Render Items (Icons / Chips)
+      itemsToCount.forEach((item) => {
+        if (item.scale > 1.0) item.scale = Math.max(1.0, item.scale - 0.03);
+
+        ctx.save();
+        ctx.translate(item.x, item.y);
+        ctx.scale(item.scale, item.scale);
+
+        if (item.isChip) {
+          ctx.beginPath();
+          ctx.arc(0, 0, item.radius, 0, Math.PI * 2);
+          ctx.fillStyle = item.counted ? '#FFC800' : '#4A2E18';
+          ctx.fill();
+          ctx.strokeStyle = item.counted ? '#E5A400' : '#2A170B';
+          ctx.lineWidth = 3;
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.arc(-4, -4, 4, 0, Math.PI * 2);
+          ctx.fillStyle = item.counted ? '#FFF' : '#6A4325';
+          ctx.fill();
+        } else {
+          ctx.font = '54px "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(item.icon, 0, 0);
+
+          if (item.counted) {
+            ctx.beginPath();
+            ctx.arc(0, 0, item.radius + 6, 0, Math.PI * 2);
+            ctx.strokeStyle = (currentMode === 'quiz') ? '#1CB0F6' : '#58CC02';
+            ctx.lineWidth = 4;
+            ctx.setLineDash([6, 4]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+        }
+
+        // Distinct marker badge
+        if (item.counted) {
+          const badgeBg = (currentMode === 'quiz') ? '#1CB0F6' : '#58CC02';
+          const badgeShadow = (currentMode === 'quiz') ? '#1899D6' : '#46A302';
+          draw3DBevelRect(6, -26, 24, 24, 12, badgeBg, badgeShadow, 2, '#FFFFFF', 1.5);
+
+          ctx.fillStyle = '#FFF';
+          ctx.font = '900 14px "Nunito", "Fredoka One"';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText((currentMode === 'quiz') ? '✓' : `${item.countNumber}`, 18, -14);
+        }
+
+        ctx.restore();
+      });
+
+      // Duolingo Equation Bar (Tile & Result Box)
+      const eqBarY = 432;
+      draw3DBevelRect(160, eqBarY - 45, 600, 92, 24, '#FFFFFF', '#E5E5E5', 4, '#E5E5E5', 2);
+
+      ctx.fillStyle = '#4B4B4B';
+      ctx.font = '900 48px "Nunito", "Fredoka One"';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      ctx.fillText(`${prob.a}`, 235, eqBarY);
+      ctx.fillStyle = '#58CC02';
+      ctx.fillText('+', 325, eqBarY);
+      ctx.fillStyle = '#4B4B4B';
+      ctx.fillText(`${prob.b}`, 415, eqBarY);
+      ctx.fillStyle = '#58CC02';
+      ctx.fillText('=', 505, eqBarY);
+
+      if (currentMode === 'practice' && currentActivityIdx === 1) {
+        drawCookingPot(570, eqBarY - 40, 110, 80, selectedAnswer !== null ? `${selectedAnswer}` : '?');
+      } else {
+        const boxColor = isCorrect ? '#58CC02' : (selectedAnswer !== null ? '#FF4B4B' : '#FFC800');
+        const boxShadow = isCorrect ? '#46A302' : (selectedAnswer !== null ? '#EA2B2B' : '#E5A400');
+        draw3DBevelRect(570, eqBarY - 38, 110, 78, 18, boxColor, boxShadow, 4);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillText(selectedAnswer !== null ? `${selectedAnswer}` : '?', 625, eqBarY + 1);
+      }
+
+      // Feedback Text Pill with high-contrast background
+      const feedbackY = 516;
+      let fbText = '';
+      let fbBg = 'rgba(0, 0, 0, 0.18)';
+      if (isCorrect) {
+        fbText = streakCount >= 3 ? `🔥 INCREDIBLE! ${streakCount} IN A ROW! 🔥` : '🌟 AMAZING JOB! WELL DONE! 🌟';
+        fbBg = 'rgba(0, 0, 0, 0.25)';
+      } else if (selectedAnswer !== null) {
+        fbText = currentMode === 'quiz' ? `Oops! ${prob.a} + ${prob.b} = ${prob.a + prob.b} 💡` : 'Oops! Try counting the items one by one! 😊';
+        fbBg = 'rgba(0, 0, 0, 0.28)';
+      } else {
+        fbText = currentMode === 'quiz' ? 'Touch items to mark them, then choose your answer:' : 'Touch items to count, then tap your answer below:';
+      }
+
+      ctx.font = '900 17px "Nunito", "Fredoka One"';
+      const fbMetrics = ctx.measureText(fbText);
+      drawRoundedRect(W / 2 - fbMetrics.width / 2 - 18, feedbackY - 16, fbMetrics.width + 36, 32, 16, fbBg);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(fbText, W / 2, feedbackY);
+
+      // Streak celebration overlay
+      if (streakCelebrationTimer > 0) {
+        streakCelebrationTimer--;
+        const bannerScale = 1 + Math.sin(bounceTicker * 3) * 0.04;
+        ctx.save();
+        ctx.translate(W / 2, 260);
+        ctx.scale(bannerScale, bannerScale);
+
+        draw3DBevelRect(-220, -42, 440, 84, 25, '#FF9600', '#E58600', 5, '#FFFFFF', 3);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '900 28px "Nunito", "Fredoka One"';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`🔥 ${streakCount} IN A ROW! SUPER STREAK! 🔥`, 0, -6);
+
+        ctx.fillStyle = '#FFF2D6';
+        ctx.font = '800 17px "Nunito"';
+        ctx.fillText(`YOU ARE ON FIRE! 🌟`, 0, 22);
+        ctx.restore();
+      }
+
+      // Draw Duolingo Style 3D Interactive Buttons
+      interactiveButtons.forEach(btn => {
+        if (btn.type === 'tab') {
+          const needsAttn = needsAttentionActivities.has(btn.idx);
+          let bg = btn.active ? '#1CB0F6' : '#FFFFFF';
+          let shadow = btn.active ? '#1899D6' : '#E5E5E5';
+          let border = btn.active ? '#1899D6' : '#E5E5E5';
+
+          if (needsAttn) {
+            bg = btn.active ? '#FFC800' : '#FFFDF0';
+            shadow = '#E5A400';
+            border = '#FFC800';
+          }
+
+          draw3DBevelRect(btn.x, btn.y, btn.w, btn.h, 18, bg, shadow, (btn.active || needsAttn) ? 4 : 3, border, 2);
+
+          ctx.fillStyle = btn.active ? '#FFFFFF' : (needsAttn ? '#A05E03' : '#777777');
+          ctx.font = '900 17px "Nunito", "Fredoka One"';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          const tabLabel = needsAttn ? `⚠️ ${btn.text}` : btn.text;
+          ctx.fillText(tabLabel, btn.x + btn.w / 2, btn.y + btn.h / 2 + 1);
+        } else if (btn.type === 'number') {
+          const isSelected = selectedAnswer === btn.num;
+          const numBg = isSelected ? (isCorrect ? '#58CC02' : '#FF4B4B') : '#FFFFFF';
+          const numShadow = isSelected ? (isCorrect ? '#46A302' : '#EA2B2B') : '#E5E5E5';
+          const numBorder = isSelected ? (isCorrect ? '#46A302' : '#EA2B2B') : '#E5E5E5';
+
+          draw3DBevelRect(btn.x, btn.y, btn.w, btn.h - 4, 18, numBg, numShadow, 4, numBorder, 2);
+
+          ctx.fillStyle = isSelected ? '#FFFFFF' : '#4B4B4B';
+          ctx.font = '900 26px "Nunito", "Fredoka One"';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(btn.text, btn.x + btn.w / 2, btn.y + (btn.h - 4) / 2);
+        } else {
+          // Speak, Reset, Prev, Next buttons
+          draw3DBevelRect(btn.x, btn.y, btn.w, btn.h, 16, '#FFFFFF', '#E5E5E5', 3, '#E5E5E5', 2);
+          ctx.fillStyle = '#4B4B4B';
+          ctx.font = '900 20px "Nunito", "Fredoka One"';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(btn.text, btn.x + btn.w / 2, btn.y + btn.h / 2);
+        }
+      });
+
+      // Particles
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.gravity) p.vy += p.gravity;
+        p.life -= p.decay;
+
+        if (p.life <= 0) {
+          particles.splice(i, 1);
+          continue;
+        }
+
+        ctx.save();
+        ctx.globalAlpha = p.life;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      ctx.restore();
+      requestAnimationFrame(render);
+    }
+
+    window.onload = () => {
+      resizeCanvas();
+      loadProblem(0, 0, false);
+      requestAnimationFrame(render);
+
+      const startOverlay = document.getElementById('start-screen');
+      if (startOverlay) {
+        ['pointerdown', 'touchstart', 'click'].forEach(evt => {
+          startOverlay.addEventListener(evt, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            triggerInitialInstructions();
+          }, { passive: false });
+        });
+      }
+    };
+  </script>
+</body>
+</html>
