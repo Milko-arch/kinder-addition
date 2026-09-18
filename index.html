@@ -511,10 +511,10 @@
         setupStandardItems(currentProb.b, currentProb.itemB || currentProb.item, rightCardX, cardY, cardW, cardH, 'B');
       }
 
-      // Bottom Number Pad (1 to 11)
+      // Bottom Number Pad (1 to 11) - Guaranteed single line on all screen sizes
       const numpadY = 575;
-      const btnSize = 56;
-      const gap = 14;
+      const btnSize = 62;
+      const gap = 12;
       const totalNumpadW = 11 * (btnSize + gap) - gap;
       const numpadStartX = (W - totalNumpadW) / 2;
 
@@ -1283,49 +1283,73 @@
         ctx.fillText(selectedAnswer !== null ? `${selectedAnswer}` : '?', 625, eqBarY + 1);
       }
 
-      // Feedback Text Pill with English and Spanish explanations
-      const feedbackY = 516;
+      // Feedback Text Banner with enlarged fonts for high mobile legibility
+      const feedbackY = 522;
       let fbEnText = '';
       let fbEsText = '';
-      let fbBg = 'rgba(0, 0, 0, 0.22)';
+      let bannerBg = '#FFFFFF';
+      let bannerBevel = '#E5E5E5';
+      let bannerBorder = '#CBD5E1';
+      let textCol1 = '#1E293B';
+      let textCol2 = '#475569';
 
       if (isCorrect) {
         fbEnText = streakCount >= 3 ? `🔥 INCREDIBLE! ${streakCount} IN A ROW! 🔥` : '🌟 AMAZING JOB! WELL DONE! 🌟';
         fbEsText = streakCount >= 3 ? '¡Increíble! ¡Gran racha de respuestas!' : '¡Excelente trabajo! ¡Muy bien hecho!';
-        fbBg = 'rgba(0, 0, 0, 0.28)';
+        bannerBg = '#F0FDF4';
+        bannerBevel = '#86EFAC';
+        bannerBorder = '#4ADE80';
+        textCol1 = '#15803D';
+        textCol2 = '#166534';
       } else if (selectedAnswer !== null) {
         fbEnText = currentMode === 'quiz' ? `Oops! ${prob.a} + ${prob.b} = ${prob.a + prob.b} 💡` : 'Oops! Try counting the items one by one! 😊';
         fbEsText = currentMode === 'quiz' ? '¡Ánimo! Pasamos a la siguiente pregunta.' : '¡Inténtalo otra vez! Cuenta uno por uno.';
-        fbBg = 'rgba(0, 0, 0, 0.30)';
+        bannerBg = '#FEF2F2';
+        bannerBevel = '#FCA5A5';
+        bannerBorder = '#F87171';
+        textCol1 = '#B91C1C';
+        textCol2 = '#C2410C';
       } else {
         if (currentMode === 'quiz') {
           fbEnText = 'Touch items to mark them • Count on your own without help!';
           fbEsText = '¡Toca los objetos para marcarlos • Cuenta tú solito sin ayuda!';
+          bannerBg = '#FFFBEB';
+          bannerBevel = '#FDE68A';
+          bannerBorder = '#F59E0B';
+          textCol1 = '#B45309';
+          textCol2 = '#92400E';
         } else {
           fbEnText = 'Touch items to listen and count together! 🔊';
           fbEsText = '¡Toca los objetos para escuchar y contar juntos! 🔊';
+          bannerBg = '#FFFFFF';
+          bannerBevel = '#E2E8F0';
+          bannerBorder = '#94A3B8';
+          textCol1 = '#0F172A';
+          textCol2 = '#334155';
         }
       }
 
-      ctx.font = '900 15px "Nunito", "Fredoka One"';
+      ctx.font = '900 20px "Nunito", "Fredoka One"';
       const w1 = ctx.measureText(fbEnText).width;
-      ctx.font = '800 13px "Nunito"';
+      ctx.font = '800 16px "Nunito"';
       const w2 = ctx.measureText(fbEsText).width;
-      const maxW = Math.max(w1, w2) + 36;
+      const maxW = Math.min(W - 40, Math.max(w1, w2) + 48);
+      const cardH = 54;
 
-      drawRoundedRect(W / 2 - maxW / 2, feedbackY - 20, maxW, 40, 18, fbBg);
+      // Draw high-contrast Duolingo style 3D badge
+      draw3DBevelRect(W / 2 - maxW / 2, feedbackY - cardH / 2, maxW, cardH, 22, bannerBg, bannerBevel, 4, bannerBorder, 2);
 
-      // Line 1: English
-      ctx.fillStyle = '#FFFFFF';
-      ctx.font = '900 15px "Nunito", "Fredoka One"';
+      // Line 1: English (Enlarged and bold)
+      ctx.fillStyle = textCol1;
+      ctx.font = '900 20px "Nunito", "Fredoka One"';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(fbEnText, W / 2, feedbackY - 7);
+      ctx.fillText(fbEnText, W / 2, feedbackY - 11);
 
-      // Line 2: Spanish explanation
-      ctx.fillStyle = '#FFF8DB';
-      ctx.font = '800 13px "Nunito"';
-      ctx.fillText(fbEsText, W / 2, feedbackY + 11);
+      // Line 2: Spanish (Enlarged and high-contrast)
+      ctx.fillStyle = textCol2;
+      ctx.font = '800 16px "Nunito"';
+      ctx.fillText(fbEsText, W / 2, feedbackY + 13);
 
       // Streak celebration overlay
       if (streakCelebrationTimer > 0) {
@@ -1379,7 +1403,7 @@
           draw3DBevelRect(btn.x, btn.y, btn.w, btn.h - 4, 18, numBg, numShadow, 4, numBorder, 2);
 
           ctx.fillStyle = isSelected ? '#FFFFFF' : '#4B4B4B';
-          ctx.font = '900 26px "Nunito", "Fredoka One"';
+          ctx.font = (btn.num >= 10) ? '900 30px "Nunito", "Fredoka One"' : '900 33px "Nunito", "Fredoka One"';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(btn.text, btn.x + btn.w / 2, btn.y + (btn.h - 4) / 2);
